@@ -2,6 +2,7 @@ local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local Players = game:GetService("Players")
 local ServerStorage = game:GetService("ServerStorage")
 local RunService = game:GetService("RunService")
+local StudioService = game:GetService("StudioService")
 
 local Rojo = script:FindFirstAncestor("Rojo")
 local Plugin = Rojo.Plugin
@@ -139,7 +140,7 @@ function App:init()
 
 	if RunService:IsEdit() then
 		self:checkForUpdates()
-
+		self:checkForRojoOpen()
 		self:startSyncReminderPolling()
 		self.disconnectSyncReminderPollingChanged = Settings:onChanged("syncReminderPolling", function(enabled)
 			if enabled then
@@ -173,11 +174,60 @@ function App:init()
 	end)
 end
 
+function App:checkForRojoOpen()
+	local rojoOpenName = `ROJO_OPEN_{StudioService:GetUserId()}`
+
+	local function tryRojoOpen(instance: Instance)
+		if instance.Name ~= rojoOpenName then
+			return
+		end
+
+		local host = instance:GetAttribute("Host")
+		if host == "127.0.0.1" then
+			-- The server default is 127.0.0.1 but the plugin's is localhost.
+			-- Change it to localhost so the address box shows the default value.
+			host = "localhost"
+		end
+
+		local port = instance:GetAttribute("Port")
+		local sessionId = instance:GetAttribute("SessionId")
+
+		instance:Destroy()
+
+		if instance.Archivable then
+			-- Protect against malicious ROJO_OPEN saved to the place.
+			return
+		elseif typeof(sessionId) ~= "string" then
+			return
+		end
+
+		-- Devkit: keep listening, so a later marker reconnects after the server stops.
+		if self.serveSession == nil or self.serveSession:getStatus() == ServeSession.Status.NotStarted then
+			self.setHost(if host ~= Config.defaultHost then host else "")
+			self.setPort(if port ~= Config.defaultPort then port else "")
+
+			self:startSession(sessionId)
+		end
+	end
+
+	self.rojoOpenConnection = game.ChildAdded:Connect(tryRojoOpen)
+
+	local existing = game:FindFirstChild(rojoOpenName)
+	if existing then
+		tryRojoOpen(existing)
+	end
+end
+
 function App:willUnmount()
 	self:endSession()
 
 	self.waypointConnection:Disconnect()
 	self.confirmationBindable:Destroy()
+
+	if self.rojoOpenConnection then
+		self.rojoOpenConnection:Disconnect()
+		self.rojoOpenConnection = nil
+	end
 
 	self.disconnectUpdatesCheckChanged()
 	self.disconnectPrereleasesCheckChanged()
@@ -600,7 +650,7 @@ function App:useRunningConnectionInfo()
 	self.setPort(port)
 end
 
-function App:startSession()
+function App:startSession(expectedSessionId: string?)
 	local claimedLock, priorOwner = self:claimSyncLock()
 	if not claimedLock then
 		local msg = string.format("Could not sync because user '%s' is already syncing", tostring(priorOwner))
@@ -629,6 +679,7 @@ function App:startSession()
 	local serveSession = ServeSession.new({
 		apiContext = apiContext,
 		twoWaySync = Settings:get("twoWaySync"),
+		expectedSessionId = expectedSessionId,
 	})
 
 	serveSession:setUpdateLoadingTextCallback(function(text: string)
@@ -739,6 +790,17 @@ function App:startSession()
 	end)
 
 	serveSession:setConfirmCallback(function(instanceMap, patch, serverInfo)
+		-- Devkit: a session asked for by a marker naming this server's session is accepted, unless the
+		-- project names places and this isn't one of them.
+		if expectedSessionId ~= nil and serverInfo.sessionId == expectedSessionId then
+			local listed = serverInfo.expectedPlaceIds == nil
+				or #serverInfo.expectedPlaceIds == 0
+				or table.find(serverInfo.expectedPlaceIds, game.PlaceId) ~= nil
+			if listed then
+				Log.trace("Accepting patch without confirmation because a marker asked for this session")
+				return "Accept"
+			end
+		end
 		if PatchSet.isEmpty(patch) then
 			Log.trace("Accepting patch without confirmation because it is empty")
 			return "Accept"
