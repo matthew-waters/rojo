@@ -1,13 +1,16 @@
 # Rojo for the Roblox Devkit
 
 A fork of [Rojo](https://github.com/rojo-rbx/rojo) 7.7.1 for the Roblox Devkit, kept only until Rojo
-releases the same changes. Each change is its own commit on the `devkit` branch:
+releases the same change. Each change is its own commit on the `devkit` branch:
 
 - **The plugin connects when a marker asks,** from [rojo-rbx/rojo#1326](https://github.com/rojo-rbx/rojo/pull/1326)'s
-  plugin half, so an agent can connect without a click. It keeps listening after the first marker, and
-  accepts a session the marker names without confirmation.
-- **`rojo serve` doesn't crash when a changed path no longer exists,** from
-  [rojo-rbx/rojo#1350](https://github.com/rojo-rbx/rojo/pull/1350).
-- **The version is `7.7.1-devkit.1`,** and the release workflow doesn't upload the plugin to Roblox.
+  plugin half, so an agent can connect without a click. On top of it, the plugin keeps listening after
+  the first marker, and accepts the session a marker names without confirmation, unless the project's
+  `servePlaceIds` leave this place out.
+- **The version is `7.7.1-devkit.2`,** and the release workflow doesn't upload the plugin to Roblox.
+
+`rojo serve` is unchanged. `7.7.1-devkit.1` also carried
+[rojo-rbx/rojo#1350](https://github.com/rojo-rbx/rojo/pull/1350)'s crash fix, dropped because a folder
+removed and restored by a branch switch was then never watched again.
 
 Rojo is licensed under the Mozilla Public License 2.0; see [LICENSE.txt](LICENSE.txt).
