@@ -7,7 +7,9 @@ releases the same change. Each change is its own commit on the `devkit` branch:
   plugin half, so an agent can connect without a click. On top of it, the plugin keeps listening after
   the first marker, and accepts the session a marker names without confirmation, unless the project's
   `servePlaceIds` leave this place out.
-- **The version is `7.7.1-devkit.2`,** and the release workflow doesn't upload the plugin to Roblox.
+- **The plugin looks for updates among this fork's releases,** not Rojo's: Rojo counts the version's suffix as a
+  prerelease, so it would announce Rojo's own 7.7.1 as newer.
+- **The version is `7.7.1-devkit.3`,** and the release workflow doesn't upload the plugin to Roblox.
 
 `rojo serve` is unchanged. `7.7.1-devkit.1` also carried
 [rojo-rbx/rojo#1350](https://github.com/rojo-rbx/rojo/pull/1350)'s crash fix, dropped because a folder
